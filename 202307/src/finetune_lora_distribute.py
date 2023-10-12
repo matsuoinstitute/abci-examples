@@ -21,10 +21,17 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
 
-def load_dataset(train_file: str, valid_size: float = 0.1, seed: int = 42):
+def load_dataset(train_file: str, valid_size: float = 0.1, seed: int = 42, **kwargs):
     dataset = datasets.load_dataset("json", data_files=train_file, split="train")
-    return dataset.train_test_split(valid_size, shuffle=True, seed=seed)
 
+    # 訓練データのサンプリング
+    if "sample_ratio" in kwargs.keys():
+        logger.info(f"dataset_len: {len(dataset)}\nsample_ratio: {kwargs['sample_ratio']}")
+        num_samples = int(len(dataset) * kwargs["sample_ratio"])
+        dataset = dataset.shuffle(seed).select(range(num_samples))
+        logger.info(f"sampled_dataset_len: {len(dataset)}")
+
+    return dataset.train_test_split(valid_size, shuffle=True, seed=seed)
 
 def group_texts(examples, block_size: int):
     concatenated_examples = {k: list(chain(*examples[k])) for k in examples.keys()}

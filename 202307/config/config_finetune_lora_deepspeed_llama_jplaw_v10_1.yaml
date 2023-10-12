@@ -1,0 +1,77 @@
+model:
+  # model parallel training が可能なモデルについては、device_map: auto とすることで自動的にモデルを分割して複数GPUに読み込んでくれる
+  # deepspeed を用いる場合は、重みの配置を deepspeed に任せるので auto は設定しない
+  # device_map: auto
+  # 8bit/4bit training may be incompatible with V100.
+  # load_in_8bit: true
+  trust_remote_code: true
+  torch_dtype: torch.float16
+
+lora:
+  r: 4
+  lora_alpha: 2
+  target_modules:
+    # for GPT-2 (includes cerebras/Cerebras-GPT-xx)
+    # - c_attn
+    # for GPT-NEOX (includes databricks/dolly-v2-xx, cyberagent/open-calm-xx)
+    # - query_key_value
+    # - dense
+    # - dense_h_to_4h
+    # - dense_4h_to_h
+    # for mosicml/mpt-7b
+    # - Wqkv
+    # for llama
+    - gate_proj
+    - up_proj
+    - down_proj
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - lm_head
+  lora_dropout: 0.01
+  bias: none
+  task_type: CAUSAL_LM
+  # set true for GPT-2
+  # fan_in_fan_out: true
+  fan_in_fan_out: false
+
+training:
+  per_device_train_batch_size: 2
+  gradient_accumulation_steps: 1
+  num_train_epochs: 1
+  fp16: false
+  optim: "adamw_torch"
+  learning_rate: 1.0e-4
+  lr_scheduler_type: "linear"
+  warmup_steps: 100
+  weight_decay: 0.1
+  logging_steps: 10
+  evaluation_strategy: "steps"
+  save_strategy: "steps"
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  eval_steps: 50
+  save_steps: 100
+  save_total_limit: 3
+  load_best_model_at_end: true
+  metric_for_best_model: "eval_loss"
+  deepspeed: ds_config/ds_config_zero3_decaylr.json
+  report_to: "wandb"
+  # for mosicml/mpt-7b
+  # deepspeed: ds_config/ds_config_zero3_mpt3.json
+
+data:
+  train_file: data/jplaw-train-v1.3.json
+  valid_size: 0.1
+  sample_ratio: 0.1
+
+input_template: |-
+  {law_num}
+  名称: {title}
+  内容: 
+  {context}
+
+outputs:
+  dirname: ../../llmx-2F/models/${JOB_ID}
+ 
